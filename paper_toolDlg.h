@@ -4,8 +4,9 @@
 
 #pragma once
 #include "afxwin.h"
-
-
+#include <vector>
+using namespace std;
+const int WM_CALL_BACK_SELECT = WM_USER+100;
 // Cpaper_toolDlg ¶Ô»°¿ò
 class Cpaper_toolDlg : public CDialogEx
 {
@@ -34,9 +35,10 @@ public:
 	afx_msg void OnBnClickedOk();
 	afx_msg void OnBnClickedCancel();
 	// For Paper
-	CEditCustom m_edit_paper;
+	CEditCustom m_edit_paper;	;
 	afx_msg void OnEnChangeEditPaper();	
 	
 	
-	afx_msg void OnLButtonUp(UINT nFlags, CPoint point);
+	static void CallBack_Select(CString origin,CString synonymous);
+	LONG OnCallBack_Select(WPARAM wParam,LPARAM lParam);
 };

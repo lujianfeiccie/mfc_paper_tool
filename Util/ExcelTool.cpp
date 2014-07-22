@@ -164,15 +164,15 @@ void ExcelTool::Add(CString text)
 	sSql.Format("INSERT INTO [sheet1$](Origin,Synonymous) VALUES('%s','')",text);
 	database->ExecuteSQL(sSql);
 }
-void ExcelTool::GetString(CString chinese,CString foreign,CString &result,BOOL fuzzy)
+void ExcelTool::GetString(CString origin,CString &result,BOOL fuzzy)
 {
 	CString sSql;
 	if(fuzzy==TRUE){
-		sSql.Format("SELECT 中文,%s from [Sheet1$] where 中文 like '%%%s%%'",
-		foreign,chinese);
+		sSql.Format("SELECT Origin,Synonymous from [Sheet1$] where Origin like '%%%s%%'",
+		origin);
 	}else{
-		sSql.Format("SELECT 中文,%s from [Sheet1$] where 中文 like '%s'",
-		foreign,chinese);
+		sSql.Format("SELECT Origin,Synonymous from [Sheet1$] where Origin like '%s'",
+		origin);
 	}
 	CRecordset recset(database);
 	recset.Open(CRecordset::forwardOnly, sSql, CRecordset::readOnly);
@@ -182,12 +182,12 @@ void ExcelTool::GetString(CString chinese,CString foreign,CString &result,BOOL f
 		while (!recset.IsEOF())
        {
             //读取Excel内部数值
-		    CString str_chinese;
-			CString str_foreign;
-			recset.GetFieldValue("中文", str_chinese);       
-			recset.GetFieldValue(foreign, str_foreign);	
+		    CString str_origin;
+			CString str_synonymous;
+			recset.GetFieldValue("Origin", str_origin);       
+			recset.GetFieldValue("Synonymous", str_synonymous);	
 			//Util::LOG("%s %s",str_chinese,str_english);
-			result = str_foreign;
+			result = str_synonymous;
 	    }
 	     recset.Close();
 	}
@@ -197,4 +197,33 @@ void ExcelTool::GetString(CString chinese,CString foreign,CString &result,BOOL f
 	END_CATCH	
 
 	
+}
+void ExcelTool::GetString(void (*pf_select)(CString origin,CString synonymous))
+{
+	CString sSql;
+	
+	sSql = "SELECT Origin,Synonymous from [Sheet1$]";
+	
+	CRecordset recset(database);
+	recset.Open(CRecordset::forwardOnly, sSql, CRecordset::readOnly);
+
+	TRY
+    {
+		while (!recset.IsEOF())
+       {
+            //读取Excel内部数值
+		    CString str_origin;
+			CString str_synonymous;
+			recset.GetFieldValue("Origin", str_origin);       
+			recset.GetFieldValue("Synonymous", str_synonymous);	
+			//Util::LOG("%s %s",str_chinese,str_english);
+			(*pf_select)(str_origin,str_synonymous);
+			recset.MoveNext();
+	    }
+	     recset.Close();
+	}
+    CATCH(CDBException, e)
+	{
+	}
+	END_CATCH	
 }

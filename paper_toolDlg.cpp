@@ -66,9 +66,9 @@ BEGIN_MESSAGE_MAP(Cpaper_toolDlg, CDialogEx)
 	ON_WM_QUERYDRAGICON()
 	ON_BN_CLICKED(IDOK, &Cpaper_toolDlg::OnBnClickedOk)
 	ON_BN_CLICKED(IDCANCEL, &Cpaper_toolDlg::OnBnClickedCancel)
+	ON_MESSAGE(WM_CALL_BACK_SELECT,&Cpaper_toolDlg::OnCallBack_Select)
 	//ON_EN_CHANGE(IDC_EDIT_PAPER, &Cpaper_toolDlg::OnEnChangeEditPaper)	
 	
-	ON_WM_LBUTTONUP()
 END_MESSAGE_MAP()
 
 
@@ -162,6 +162,12 @@ HCURSOR Cpaper_toolDlg::OnQueryDragIcon()
 void Cpaper_toolDlg::OnBnClickedOk()
 {
 	// TODO: 在此添加控件通知处理程序代码
+	CString paper;
+	m_edit_paper.GetWindowTextA(paper);
+
+	if(""==paper.Trim()) return;
+
+	
 	//CDialogEx::OnOK();
 	if(!ICTCLAS_Init()) //初始化分词组件。
 	{
@@ -175,8 +181,7 @@ void Cpaper_toolDlg::OnBnClickedOk()
 	//设置词性标注集(0 计算所二级标注集，1 计算所一级标注集，2 北大二级标注集，3 北大一级标注集)
 	ICTCLAS_SetPOSmap(2);
 
-	CString paper;
-	m_edit_paper.GetWindowTextA(paper);
+	
 
 	char* sSentence=paper.GetBuffer(); // 需要分词的内容
 	paper.ReleaseBuffer();
@@ -225,10 +230,29 @@ void Cpaper_toolDlg::OnBnClickedOk()
 void Cpaper_toolDlg::OnBnClickedCancel()
 {
 	// TODO: 在此添加控件通知处理程序代码
-	CDialogEx::OnCancel();
+	//CDialogEx::OnCancel();
+	char directory[1024];
+	Util::GetFileDirectory(directory);
+	strcat(directory,EXCEL_FILE_NAME);
+	ExcelTool::getInstance()->Open(directory);
+
+	ExcelTool::getInstance()->GetString(CallBack_Select);
+
+	ExcelTool::getInstance()->Close();
 }
 
-
+void Cpaper_toolDlg::CallBack_Select(CString origin,CString synonymous)
+{
+//	Util::LOG(origin+" "+synonymous);
+	::SendMessageA(::AfxGetMainWnd()->m_hWnd,WM_CALL_BACK_SELECT,(WPARAM)origin.GetBuffer(),(LPARAM)synonymous.GetBuffer());
+}
+LONG Cpaper_toolDlg::OnCallBack_Select(WPARAM wParam,LPARAM lParam)
+{
+	CString origin = (char*)wParam;
+	CString synonymous = (char*)lParam;
+	MessageBox(origin+" "+synonymous);
+	return 0;
+}
 void Cpaper_toolDlg::OnEnChangeEditPaper()
 {
 	// TODO:  如果该控件是 RICHEDIT 控件，它将不
@@ -242,10 +266,4 @@ void Cpaper_toolDlg::OnEnChangeEditPaper()
 	//Util::LOG(tmp);
 }
 
-void Cpaper_toolDlg::OnLButtonUp(UINT nFlags, CPoint point)
-{
-	// TODO: 在此添加消息处理程序代码和/或调用默认值
-	Util::LOG("Button up");	
-	GetDlgItem(m_edit_paper.GetDlgCtrlID())->PostMessage(WM_KILLFOCUS, 0, 0);
-	CDialogEx::OnLButtonUp(nFlags, point);
-}
+
