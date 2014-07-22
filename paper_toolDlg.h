@@ -4,7 +4,9 @@
 
 #pragma once
 #include "afxwin.h"
+#include "ResultDlg.h"
 #include <vector>
+#include <map>
 using namespace std;
 const int WM_CALL_BACK_SELECT = WM_USER+100;
 // Cpaper_toolDlg ¶Ô»°¿ò
@@ -29,6 +31,7 @@ protected:
 	virtual BOOL OnInitDialog();
 	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
 	afx_msg void OnPaint();
+	afx_msg void OnClose();
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
 public:
@@ -41,4 +44,6 @@ public:
 	
 	static void CallBack_Select(CString origin,CString synonymous);
 	LONG OnCallBack_Select(WPARAM wParam,LPARAM lParam);
+	CResultDlg m_dlg;
+	CString m_str_result;;
 };

@@ -58,6 +58,9 @@
     <ClInclude Include="EditCustom.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="ResultDlg.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="paper_tool.cpp">
@@ -79,6 +82,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="EditCustom.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="ResultDlg.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

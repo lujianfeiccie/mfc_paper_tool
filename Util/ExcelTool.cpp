@@ -220,6 +220,7 @@ void ExcelTool::GetString(void (*pf_select)(CString origin,CString synonymous))
 			(*pf_select)(str_origin,str_synonymous);
 			recset.MoveNext();
 	    }
+		(*pf_select)("finish","finish");
 	     recset.Close();
 	}
     CATCH(CDBException, e)

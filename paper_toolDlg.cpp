@@ -7,6 +7,7 @@
 #include "paper_toolDlg.h"
 #include "afxdialogex.h"
 
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -63,6 +64,7 @@ void Cpaper_toolDlg::DoDataExchange(CDataExchange* pDX)
 BEGIN_MESSAGE_MAP(Cpaper_toolDlg, CDialogEx)
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
+	ON_WM_CLOSE()
 	ON_WM_QUERYDRAGICON()
 	ON_BN_CLICKED(IDOK, &Cpaper_toolDlg::OnBnClickedOk)
 	ON_BN_CLICKED(IDCANCEL, &Cpaper_toolDlg::OnBnClickedCancel)
@@ -207,16 +209,24 @@ void Cpaper_toolDlg::OnBnClickedOk()
 	int Position = 0;
 	CString Token;
 
+	map<CString,CString> list;
 	
 	do{
 		// Get next token.
 		Token = words.Tokenize(" ", Position);
-		ExcelTool::getInstance()->Add(Token);	
+		
+		if(list.find(Token)==list.end() && Token.GetLength()>2){
+			list.insert(map<CString,CString>::value_type(Token,Token));
+			
+			ExcelTool::getInstance()->Add(Token);	
+			
+		}
+		
 	} 
 	while(!Token.IsEmpty());
 
 	ExcelTool::getInstance()->Close();
-
+	list.clear();
 
 	free(sRst);
 	//也可以用文件文本导入,调用文件分词接口，将分词结果写入“Test_reslult.txt”文件中
@@ -226,7 +236,14 @@ void Cpaper_toolDlg::OnBnClickedOk()
 	MessageBox("Success!");
 }
 
+DWORD WINAPI OnOpenDlg(LPVOID param)
+{
+	Sleep(1000);
+	Cpaper_toolDlg *dlg = (Cpaper_toolDlg*)param;
 
+	dlg->m_dlg.m_edit_result.SetWindowTextA(dlg->m_str_result);
+	return 0;
+}
 void Cpaper_toolDlg::OnBnClickedCancel()
 {
 	// TODO: 在此添加控件通知处理程序代码
@@ -234,11 +251,17 @@ void Cpaper_toolDlg::OnBnClickedCancel()
 	char directory[1024];
 	Util::GetFileDirectory(directory);
 	strcat(directory,EXCEL_FILE_NAME);
+
+	m_edit_paper.GetWindowTextA(m_str_result);
+
 	ExcelTool::getInstance()->Open(directory);
 
 	ExcelTool::getInstance()->GetString(CallBack_Select);
 
 	ExcelTool::getInstance()->Close();
+	
+	m_dlg.DoModal();
+	
 }
 
 void Cpaper_toolDlg::CallBack_Select(CString origin,CString synonymous)
@@ -250,7 +273,18 @@ LONG Cpaper_toolDlg::OnCallBack_Select(WPARAM wParam,LPARAM lParam)
 {
 	CString origin = (char*)wParam;
 	CString synonymous = (char*)lParam;
-	MessageBox(origin+" "+synonymous);
+	//MessageBox(origin+" "+synonymous);
+	m_str_result.Replace(origin,synonymous);
+	if("finish"==origin)
+	{
+		DWORD dwThreadId;
+	 CreateThread(NULL, // default security attributes 
+                            0, // use default stack size 
+                           OnOpenDlg, // thread function 
+                            this, // argument to thread function 
+                            0, // use default creation flags 
+                            &dwThreadId);  		
+	}
 	return 0;
 }
 void Cpaper_toolDlg::OnEnChangeEditPaper()
@@ -265,5 +299,9 @@ void Cpaper_toolDlg::OnEnChangeEditPaper()
 	//m_edit_paper.GetWindowTextA(tmp);
 	//Util::LOG(tmp);
 }
-
+void Cpaper_toolDlg::OnClose()
+{
+	CDialog::OnClose();
+	CDialog::OnCancel();
+}
 
