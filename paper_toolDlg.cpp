@@ -69,13 +69,56 @@ BEGIN_MESSAGE_MAP(Cpaper_toolDlg, CDialogEx)
 	ON_BN_CLICKED(IDOK, &Cpaper_toolDlg::OnBnClickedOk)
 	ON_BN_CLICKED(IDCANCEL, &Cpaper_toolDlg::OnBnClickedCancel)
 	ON_MESSAGE(WM_CALL_BACK_SELECT,&Cpaper_toolDlg::OnCallBack_Select)
-	//ON_EN_CHANGE(IDC_EDIT_PAPER, &Cpaper_toolDlg::OnEnChangeEditPaper)	
+	ON_MESSAGE(WM_CALL_BACK_SELECT_FOR_INITDATA,&Cpaper_toolDlg::OnCallBack_SelectForInitData)
+	ON_MESSAGE(WM_CALL_BACK_SELECT_FOR_STATUS,&Cpaper_toolDlg::OnCallBack_STATUS)
 	
+	//ON_EN_CHANGE(IDC_EDIT_PAPER, &Cpaper_toolDlg::OnEnChangeEditPaper)		
 END_MESSAGE_MAP()
 
+void CallBack_SelectForInitData(CString origin,CString synonymous)
+{
+//	Util::LOG(origin+" "+synonymous);
+	::SendMessageA(::AfxGetMainWnd()->m_hWnd,WM_CALL_BACK_SELECT_FOR_INITDATA,(WPARAM)origin.GetBuffer(),(LPARAM)synonymous.GetBuffer());
+}
 
+LONG Cpaper_toolDlg::OnCallBack_SelectForInitData(WPARAM wParam,LPARAM lParam)
+{
+	CString origin = (char*)wParam;
+	CString synonymous = (char*)lParam;
+	if("finish"==origin)
+	{
+		Util::LOG("Finsh loading");
+		m_statusbar_status.SetPaneText(0,"Finish");
+		return 0;
+	}
+	Util::LOG("Loading data");
+	m_map_list.insert(map<CString,CString>::value_type(origin,synonymous));
+	return 0;
+}
 // Cpaper_toolDlg 消息处理程序
+UINT OnInitDialogLoadData(LPVOID param)
+{
+	
+	Cpaper_toolDlg *dlg = (Cpaper_toolDlg*)param;
+	
+	char directory[1024];
+	Util::GetFileDirectory(directory);
+	strcat(directory,EXCEL_FILE_NAME);
+	if(!Util::isExist(directory)) return TRUE;
+	
 
+	dlg->SendMessage(WM_CALL_BACK_SELECT_FOR_STATUS,3);
+
+	ExcelTool::getInstance()->Open(directory);
+
+	ExcelTool::getInstance()->GetString(CallBack_SelectForInitData);
+
+	ExcelTool::getInstance()->Close();	
+
+	
+	
+	return 0;
+}
 BOOL Cpaper_toolDlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
@@ -106,7 +149,22 @@ BOOL Cpaper_toolDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// 设置小图标
 
 	// TODO: 在此添加额外的初始化代码
+		//Add Status Bar
+	if (!m_statusbar_status.Create(this) ||
+        !m_statusbar_status.SetIndicators(indicators,sizeof(indicators)/sizeof(UINT))
+        )
+	{
+		   TRACE0("Failed to create status bar\n");
+		   return -1;      // fail to create
+	}
+	m_statusbar_status.SetPaneInfo(0,indicators[0],SBPS_STRETCH,400);	
+    
+    RepositionBars(AFX_IDW_CONTROLBAR_FIRST,AFX_IDW_CONTROLBAR_LAST,AFX_IDW_CONTROLBAR_FIRST);
 	//m_edit_paper.SubclassDlgItem(IDC_EDIT_PAPER,this);
+	
+
+
+	AfxBeginThread(OnInitDialogLoadData,this);
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -159,34 +217,27 @@ HCURSOR Cpaper_toolDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
-
-
-void Cpaper_toolDlg::OnBnClickedOk()
+UINT ThreadToParagraphProcess(LPVOID param)
 {
-	// TODO: 在此添加控件通知处理程序代码
-	CString paper;
-	m_edit_paper.GetWindowTextA(paper);
-
-	if(""==paper.Trim()) return;
-
-	
+	Cpaper_toolDlg *dlg = (Cpaper_toolDlg*)param;
 	//CDialogEx::OnOK();
 	if(!ICTCLAS_Init()) //初始化分词组件。
 	{
 		Util::LOG("Init fails\n");  
-		return ;
+		return 0;
 	}
 	else
 	{
 		Util::LOG("Init ok\n");
 	}
+	dlg->SendMessage(WM_CALL_BACK_SELECT_FOR_STATUS,1,0);
 	//设置词性标注集(0 计算所二级标注集，1 计算所一级标注集，2 北大二级标注集，3 北大一级标注集)
 	ICTCLAS_SetPOSmap(2);
 
 	
 
-	char* sSentence=paper.GetBuffer(); // 需要分词的内容
-	paper.ReleaseBuffer();
+	char* sSentence=dlg->m_str_paper.GetBuffer(); // 需要分词的内容
+	dlg->m_str_paper.ReleaseBuffer();
 	//Util::LOG(sSentence);
 	unsigned int nPaLen=strlen(sSentence); // 需要分词的长度
 	char* sRst=0;   //用户自行分配空间，用于保存结果；
@@ -209,14 +260,14 @@ void Cpaper_toolDlg::OnBnClickedOk()
 	int Position = 0;
 	CString Token;
 
-	map<CString,CString> list;
+	
 	
 	do{
 		// Get next token.
 		Token = words.Tokenize(" ", Position);
 		
-		if(list.find(Token)==list.end() && Token.GetLength()>2){
-			list.insert(map<CString,CString>::value_type(Token,Token));
+		if(dlg->m_map_list.find(Token)==dlg->m_map_list.end() && Token.GetLength()>2){
+			dlg->m_map_list.insert(map<CString,CString>::value_type(Token,Token));
 			
 			ExcelTool::getInstance()->Add(Token);	
 			
@@ -226,28 +277,85 @@ void Cpaper_toolDlg::OnBnClickedOk()
 	while(!Token.IsEmpty());
 
 	ExcelTool::getInstance()->Close();
-	list.clear();
+	
 
 	free(sRst);
 	//也可以用文件文本导入,调用文件分词接口，将分词结果写入“Test_reslult.txt”文件中
 	ICTCLAS_FileProcess("Test.txt", "Test_result.txt",CODE_TYPE_GB,1);
 	ICTCLAS_Exit();	//释放资源退出
+	
+	dlg->SendMessage(WM_CALL_BACK_SELECT_FOR_STATUS,2,0);
 
-	MessageBox("Success!");
-}
-
-DWORD WINAPI OnOpenDlg(LPVOID param)
-{
-	Sleep(1000);
-	Cpaper_toolDlg *dlg = (Cpaper_toolDlg*)param;
-
-	dlg->m_dlg.m_edit_result.SetWindowTextA(dlg->m_str_result);
 	return 0;
 }
+
+void Cpaper_toolDlg::OnBnClickedOk()
+{
+	// TODO: 在此添加控件通知处理程序代码
+
+	m_edit_paper.GetWindowTextA(m_str_paper);
+
+	if(""==m_str_paper.Trim()){ 
+		MessageBox("Edit Control can not be empty!");
+		return;
+	}
+	AfxBeginThread(ThreadToParagraphProcess,this);
+}
+
+UINT OnOpenDlg(LPVOID param)
+{
+	
+	Cpaper_toolDlg *dlg = (Cpaper_toolDlg*)param;
+	
+	while(!dlg->m_dlg.m_b_initied) Sleep(10);
+
+	
+	
+	dlg->SendMessageA(WM_CALL_BACK_SELECT_FOR_STATUS,
+		0,0);
+	return 0;
+}
+LONG Cpaper_toolDlg::OnCallBack_STATUS(WPARAM wParam,LPARAM lParam)
+{
+	switch(wParam)
+	{
+	case 0:
+		{
+			m_dlg.m_edit_result.SetWindowTextA(m_str_result);
+			m_statusbar_status.SetPaneText(0,"Finish");
+		}
+		break;
+	case 1:
+		{
+		    m_statusbar_status.SetPaneText(0,"Processing");
+		}
+		break;
+	case 2:
+		{
+			m_statusbar_status.SetPaneText(0,"Finish");
+			MessageBox("Success");
+		}
+		break;
+	case 3:
+		{
+		    m_statusbar_status.SetPaneText(0,"Loading");
+		}
+		break;
+	}
+	return 0;
+}
+void CallBack_Select(CString origin,CString synonymous)
+{
+//	Util::LOG(origin+" "+synonymous);
+	::SendMessageA(::AfxGetMainWnd()->m_hWnd,WM_CALL_BACK_SELECT,(WPARAM)origin.GetBuffer(),(LPARAM)synonymous.GetBuffer());
+}
+
 void Cpaper_toolDlg::OnBnClickedCancel()
 {
 	// TODO: 在此添加控件通知处理程序代码
 	//CDialogEx::OnCancel();
+	m_statusbar_status.SetPaneText(0,"Processing");
+
 	char directory[1024];
 	Util::GetFileDirectory(directory);
 	strcat(directory,EXCEL_FILE_NAME);
@@ -259,31 +367,24 @@ void Cpaper_toolDlg::OnBnClickedCancel()
 	ExcelTool::getInstance()->GetString(CallBack_Select);
 
 	ExcelTool::getInstance()->Close();
-	
+
 	m_dlg.DoModal();
 	
 }
 
-void Cpaper_toolDlg::CallBack_Select(CString origin,CString synonymous)
-{
-//	Util::LOG(origin+" "+synonymous);
-	::SendMessageA(::AfxGetMainWnd()->m_hWnd,WM_CALL_BACK_SELECT,(WPARAM)origin.GetBuffer(),(LPARAM)synonymous.GetBuffer());
-}
+
 LONG Cpaper_toolDlg::OnCallBack_Select(WPARAM wParam,LPARAM lParam)
 {
 	CString origin = (char*)wParam;
 	CString synonymous = (char*)lParam;
 	//MessageBox(origin+" "+synonymous);
-	m_str_result.Replace(origin,synonymous);
+	if(""!=synonymous.Trim()) m_str_result.Replace(origin,synonymous);
+
 	if("finish"==origin)
 	{
 		DWORD dwThreadId;
-	 CreateThread(NULL, // default security attributes 
-                            0, // use default stack size 
-                           OnOpenDlg, // thread function 
-                            this, // argument to thread function 
-                            0, // use default creation flags 
-                            &dwThreadId);  		
+		
+		 AfxBeginThread(OnOpenDlg,this);
 	}
 	return 0;
 }
@@ -298,6 +399,33 @@ void Cpaper_toolDlg::OnEnChangeEditPaper()
 	//CString tmp;
 	//m_edit_paper.GetWindowTextA(tmp);
 	//Util::LOG(tmp);
+}
+
+//实现edit control全选
+BOOL Cpaper_toolDlg::PreTranslateMessage(MSG* pMsg)
+{
+// TODO: Add your specialized code here and/or call the base class
+	if (pMsg->message==WM_KEYDOWN)
+	{
+	BOOL bCtrl=::GetKeyState(VK_CONTROL)&0x8000;
+	BOOL bShift=::GetKeyState(VK_SHIFT)&0x8000;
+
+	// only gets here if CTRL key is pressed
+	BOOL bAlt=::GetKeyState(VK_MENU)&0x8000;
+	
+	switch( pMsg->wParam )
+	{
+
+		case 'A':
+		if (bCtrl){
+			m_edit_paper.SetSel(0,-1);
+		}
+		break;
+		}
+	}
+	if(pMsg->message==WM_KEYDOWN && pMsg->wParam==VK_ESCAPE) return TRUE; 
+
+return CDialog::PreTranslateMessage(pMsg);
 }
 void Cpaper_toolDlg::OnClose()
 {

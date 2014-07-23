@@ -9,6 +9,12 @@
 #include <map>
 using namespace std;
 const int WM_CALL_BACK_SELECT = WM_USER+100;
+const int WM_CALL_BACK_SELECT_FOR_INITDATA = WM_USER+101;
+const int WM_CALL_BACK_SELECT_FOR_STATUS = WM_USER+102;
+
+static UINT indicators[]={
+IDS_STRING_STATUS
+};
 // Cpaper_toolDlg ¶Ô»°¿ò
 class Cpaper_toolDlg : public CDialogEx
 {
@@ -41,9 +47,14 @@ public:
 	CEditCustom m_edit_paper;	;
 	afx_msg void OnEnChangeEditPaper();	
 	
+	BOOL PreTranslateMessage(MSG* pMsg);
 	
-	static void CallBack_Select(CString origin,CString synonymous);
 	LONG OnCallBack_Select(WPARAM wParam,LPARAM lParam);
+	LONG OnCallBack_SelectForInitData(WPARAM wParam,LPARAM lParam);
+	LONG OnCallBack_STATUS(WPARAM wParam,LPARAM lParam);
 	CResultDlg m_dlg;
-	CString m_str_result;;
+	CString m_str_result;
+	map<CString,CString> m_map_list;
+	CStatusBar m_statusbar_status;
+	CString m_str_paper;
 };

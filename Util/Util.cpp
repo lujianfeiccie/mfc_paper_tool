@@ -49,3 +49,20 @@ void Util::GetDirectoryByFileName(const char* fileName,char* directory)
 	strcpy(directory,directory_str.GetBuffer(1024));
 	directory_str.ReleaseBuffer();
 }
+
+BOOL Util::isExist(char* filename)
+{
+	WIN32_FIND_DATA FindFileData;
+	HANDLE hFind;
+
+	hFind = FindFirstFile(filename, &FindFileData);
+
+	if (hFind == INVALID_HANDLE_VALUE) 
+	return false;
+	else
+	{
+	FindClose(hFind);
+	return true;
+	}
+	return false;
+}
