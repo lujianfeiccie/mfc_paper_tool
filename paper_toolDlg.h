@@ -12,6 +12,13 @@ const int WM_CALL_BACK_SELECT = WM_USER+100;
 const int WM_CALL_BACK_SELECT_FOR_INITDATA = WM_USER+101;
 const int WM_CALL_BACK_SELECT_FOR_STATUS = WM_USER+102;
 
+enum MSG_TYPE
+{
+	MSG_Processing,
+	MSG_Finish,
+	MSG_FinishParagraphProcessing,
+	MSG_Loading
+};
 static UINT indicators[]={
 IDS_STRING_STATUS
 };
@@ -52,6 +59,7 @@ public:
 	LONG OnCallBack_Select(WPARAM wParam,LPARAM lParam);
 	LONG OnCallBack_SelectForInitData(WPARAM wParam,LPARAM lParam);
 	LONG OnCallBack_STATUS(WPARAM wParam,LPARAM lParam);
+	void SendMessageStatus(MSG_TYPE type);
 	CResultDlg m_dlg;
 	CString m_str_result;
 	map<CString,CString> m_map_list;

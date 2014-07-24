@@ -105,9 +105,8 @@ UINT OnInitDialogLoadData(LPVOID param)
 	Util::GetFileDirectory(directory);
 	strcat(directory,EXCEL_FILE_NAME);
 	if(!Util::isExist(directory)) return TRUE;
-	
-
-	dlg->SendMessage(WM_CALL_BACK_SELECT_FOR_STATUS,3);
+		
+	dlg->SendMessageStatus(MSG_TYPE::MSG_Loading);
 
 	ExcelTool::getInstance()->Open(directory);
 
@@ -230,7 +229,8 @@ UINT ThreadToParagraphProcess(LPVOID param)
 	{
 		Util::LOG("Init ok\n");
 	}
-	dlg->SendMessage(WM_CALL_BACK_SELECT_FOR_STATUS,1,0);
+	
+	dlg->SendMessageStatus(MSG_TYPE::MSG_Processing);
 	//设置词性标注集(0 计算所二级标注集，1 计算所一级标注集，2 北大二级标注集，3 北大一级标注集)
 	ICTCLAS_SetPOSmap(2);
 
@@ -284,8 +284,7 @@ UINT ThreadToParagraphProcess(LPVOID param)
 	ICTCLAS_FileProcess("Test.txt", "Test_result.txt",CODE_TYPE_GB,1);
 	ICTCLAS_Exit();	//释放资源退出
 	
-	dlg->SendMessage(WM_CALL_BACK_SELECT_FOR_STATUS,2,0);
-
+	dlg->SendMessageStatus(MSG_TYPE::MSG_Finish);
 	return 0;
 }
 
@@ -311,32 +310,36 @@ UINT OnOpenDlg(LPVOID param)
 
 	
 	
-	dlg->SendMessageA(WM_CALL_BACK_SELECT_FOR_STATUS,
-		0,0);
+	dlg->SendMessageStatus(MSG_TYPE::MSG_FinishParagraphProcessing);
 	return 0;
+}
+
+void Cpaper_toolDlg::SendMessageStatus(MSG_TYPE type)
+{
+	SendMessageA(WM_CALL_BACK_SELECT_FOR_STATUS,type,0);
 }
 LONG Cpaper_toolDlg::OnCallBack_STATUS(WPARAM wParam,LPARAM lParam)
 {
 	switch(wParam)
 	{
-	case 0:
+	case MSG_TYPE::MSG_FinishParagraphProcessing:
 		{
 			m_dlg.m_edit_result.SetWindowTextA(m_str_result);
 			m_statusbar_status.SetPaneText(0,"Finish");
 		}
 		break;
-	case 1:
+	case MSG_TYPE::MSG_Processing:
 		{
 		    m_statusbar_status.SetPaneText(0,"Processing");
 		}
 		break;
-	case 2:
+	case MSG_TYPE::MSG_Finish:
 		{
 			m_statusbar_status.SetPaneText(0,"Finish");
 			MessageBox("Success");
 		}
 		break;
-	case 3:
+	case MSG_TYPE::MSG_Loading:
 		{
 		    m_statusbar_status.SetPaneText(0,"Loading");
 		}
